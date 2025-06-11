@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "wip-neovim-go"
 emoji: "📘"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["neovim", "plugin", "go", "rpc", "golang"]
