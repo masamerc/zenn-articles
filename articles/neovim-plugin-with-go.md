@@ -26,6 +26,8 @@ published: false
 
 https://gitlab.com/Masterbongo/neovim-go-rpc
 
+https://github.com/masamerc/neovim-go-rpc
+
 This project consists of two parts working together via Neovim's RPC mechanism:
 
 ---
