@@ -16,13 +16,21 @@ published: false
 ## Concept / How it works
 簡単にまとめると、Goで実装した処理をRPCとして用意し、NeovimからRPCを使ってその処理を呼ぶ形になります。
 
-NeovimのAPIをGoで呼び出す際には公式のClientを利用し、RPCというxxxを活用する形になります。
+NeovimのAPIをGoで呼び出す際には公式のClientを利用し、RPCという仕組みを活用する形になります。
 https://github.com/neovim/go-client
 
-こちらはneovim公式で出しているものになり、
+こちらはneovim公式で出しているもので、RPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
 
+基本的な流れはこんな感じ：
 
-NeovimのPlugin自体はLuaで書いて、その中で
+1. **Neovimプラグイン（Lua）側**: `jobstart()`でGoのバイナリをサブプロセスとして起動
+2. **Go側**: `nvim.Serve()`でRPCサーバーを立ち上げて、呼び出し可能な関数を登録
+3. **通信**: stdin/stdoutを使ってRPCでやり取り
+4. **実行**: NeovimからGoの関数を`rpcrequest()`で呼び出し
+
+要するに、重い処理とかGoの豊富なライブラリを使いたい部分はGoで書いて、プラグインのインターフェース部分はLuaで書くという住み分けができる感じですね。
+
+NeovimのPlugin自体はLuaで書いて、その中でGoのプロセスを起動して連携させる形になります。
 
 ## Code along
 
