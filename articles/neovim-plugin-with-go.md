@@ -14,6 +14,15 @@ published: false
 - かなりシンプルな構成で、Goのコードも少ない。
 
 ## Concept / How it works
+簡単にまとめると、Goで実装した処理をRPCとして用意し、NeovimからRPCを使ってその処理を呼ぶ形になります。
+
+NeovimのAPIをGoで呼び出す際には公式のClientを利用し、RPCというxxxを活用する形になります。
+https://github.com/neovim/go-client
+
+こちらはneovim公式で出しているものになり、
+
+
+NeovimのPlugin自体はLuaで書いて、その中で
 
 ## Code along
 
