@@ -58,12 +58,10 @@ LuaJIT 2.1.1744318430
 
 ```
 wc-demo.nvim
-│
 ├── lua              # neovimが使うluaのpluginファイルを置く場所
 │   └── wc-demo
 │       ├── init.lua
 │       └── rpc.lua
-│
 └── rpc              # Go側の処理を実装する場所
     ├── bin
     │   └── server
@@ -351,9 +349,7 @@ require('wc-demo').setup({
 ```
 
 `vim.tbl_deep_extend("force", default_opts, opts or {})`の部分は、デフォルトオプションとユーザーが指定したオプションをマージする処理です。
-
-"force"モードを使うことで、ユーザーのオプションがデフォルトを上書きする形になります。`opts or {}`の部分は、ユーザーがオプションを何も渡さなかった場合に空のテーブルを使うためのLuaイディオムですね。
-そして実際の初期化処理は`rpc.setup(opts)`に委譲することで、`init.lua`はシンプルな入り口の役割に徹しています。
+そして実際のRPC関連の処理は`rpc.setup(opts)`に委譲することで、`init.lua`はシンプルな入り口の役割に徹しています。
 
 
 ### `rpc.lua`: Goの処理を呼ぶ
@@ -482,7 +478,7 @@ wc-demo.nvim
 
 #### Helper関数の用意
 
-次に、Helper関数として2つの重要な関数が定義されています。
+次に、Helper関数として2つの関数を用意します。
 
 **`ensure_binary()`関数**
 ```lua
@@ -502,7 +498,9 @@ local function ensure_binary()
 end
 ```
 
-こちらはRPCバイナリが存在しない場合に自動的にビルドを実行する役割を担っていて、`vim.fn.filereadable(binary_path) == 0`でバイナリファイルの存在確認を行い、存在しない場合は`go build`コマンドを非同期Jobとしてneovimから実行するというような形です。ビルドが失敗した場合は`vim.notify()`でエラーメッセージを表示してくれます。
+こちらはRPCバイナリが存在しない場合に自動的にビルドを実行する処理です。
+
+`vim.fn.filereadable(binary_path) == 0`でバイナリファイルの存在確認を行い、存在しない場合は`go build`コマンドを非同期Jobとしてneovimから実行するというような形です。ビルドが失敗した場合は`vim.notify()`でエラーメッセージを表示してくれます。
 
 **`ensure_job()`関数**
 ```lua
@@ -567,6 +565,70 @@ end, { nargs = "*", range = true })
 このコマンド登録をすることでユーザーはneovimから`:Hello`や`:Wc`コマンドを打ってRPC機能を利用できるようになります。
 
 ## Pluginの動作確認
+ここまでファイルが用意ができたらneovimから実際に呼び出してみます。
+筆者は`lazy.nvim`というpluginマネージャーを使っているので以下のような形でpluginを読み込みます。
 
+https://github.com/folke/lazy.nvim
 
+Localにpluginコードを置いたままの場合:
+```lua
+	{
+        dir = "/path/to/plugin/wc-demo.nvim",
+        config = function()
+           require("wc-demo").setup()
+        end,
+    },
+```
+
+githubにPush済みの場合:
+```lua
+
+	{
+        "<github_username>/wc-demo.nvim",
+        config = function()
+           require("wc-demo").setup()
+        end,
+    },
+```
+
+上記設定後に以下をneovimから実行してInstallできているかを確認します:
+```
+:lua print(vim.inspect(require('wc-demo')))
+```
+出力は以下の通りなので`setup`関数が定義されていることが確認でき、installされていることが確認できます。
+```
+{
+  setup = <function 1>
+}
+
+```
+ここからは実際に`:Hello`コマンドと、`:Wc`コマンドを打ってRPC機能を利用してみましょう。
+まずは`:Hello`コマンドを打ってみます:
+```
+:Hello user
+```
+出力は以下で帰ってきました！問題なく動いていそうです。
+```
+Hello user!!
+```
+
+次に`:Wc`コマンドを使ってみます。こちらはvimのビジュアルモードで対象を選択する必要があるので、以下のような適当なテキストを入力、範囲選択して`:Wc`コマンドを打ってみます。
+```
+Lorem ipsum dolor
+sit amet, consectetur adipiscing
+```
+出力としては以下が返ってきたので、こちらも問題なく動いていそうです！
+```
+Lines: 2
+Words: 7
+Characters: 45
+```
 # まとめ
+
+今回はGoを使ってneovimプラグインを作る方法について一通り見てきました。
+
+基本的にはGo側でRPCサーバーを立ててneovimクライアントに機能を公開し、Lua側でそれをラップして使いやすいコマンドとして提供するという流れでした。GoのRichなライブラリ群を活用しつつneovimの拡張性を活かせるのは結構良い感じですね。
+
+今回作ったWcコマンドは割とシンプルでしたが、例えばGoのconcurrency機能を使って重い処理を並列化したり、外部APIを叩いてデータを取ってきたりといった応用も色々できそうです。
+
+neovimプラグイン開発に興味がある方の参考になれば幸いです！
