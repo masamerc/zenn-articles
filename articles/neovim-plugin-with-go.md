@@ -262,6 +262,7 @@ require('wc-demo').setup({
 * Helper関数の用意
 * RPC処理を実際のneovimコマンドとして登録
 
+:::details フルコード
 
 ```lua
 
@@ -344,6 +345,8 @@ end
 return M
 
 ```
+:::
+
 
 **GoバイナリのPath設定**
 
