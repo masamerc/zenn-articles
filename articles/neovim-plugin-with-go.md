@@ -582,7 +582,6 @@ Localにpluginコードを置いたままの場合:
 
 githubにPush済みの場合:
 ```lua
-
     {
         "<github_username>/wc-demo.nvim",
         config = function()
