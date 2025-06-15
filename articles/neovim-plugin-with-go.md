@@ -3,7 +3,7 @@ title: "Goで開発するneovimのplugin"
 emoji: "📘"
 type: "tech"
 topics: ["neovim", "plugin", "go", "rpc", "golang", "vim"]
-published: false
+published: true
 ---
 
 # 本記事の内容
