@@ -100,6 +100,88 @@ $ go get -u github.com/neovim/go-client
 #### `main.go`
 次に以下の内容の`main.go`ファイルを用意します。
 
+:::details `main.go`
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	"github.com/neovim/go-client/nvim"
+)
+
+// function / handler exposed to neovim via RPC
+func Hello(v *nvim.Nvim, args []string) error {
+	return v.WriteOut(fmt.Sprintf("Hello %s!!\n", strings.Join(args, " ")))
+}
+
+// another function / handler for neovim
+func WordCount(v *nvim.Nvim, args []string) error {
+	if len(args) == 0 {
+		return v.WriteOut("Usage: WordCount <text>\n")
+	}
+
+	text := args[0]
+
+	// count words (split by whitespace and filter empty strings)
+	words := strings.Fields(text)
+	wordCount := len(words)
+
+	// count characters (excluding spaces)
+	charCount := len(strings.ReplaceAll(text, " ", ""))
+
+	// count lines
+	lineCount := strings.Count(text, "\n") + 1
+	if text == "" {
+		lineCount = 0
+	}
+
+	result := fmt.Sprintf(`
+Lines: %d
+Words: %d
+Characters: %d
+`, lineCount, wordCount, charCount)
+
+	return v.WriteOut(result)
+}
+
+// binary entry point
+func main() {
+	// turn off timestamps in output.
+	log.SetFlags(0)
+
+	// direct writes by the application to stdout garble the rpc stream.
+	// redirect the application's direct use of stdout to stderr.
+	stdout := os.Stdout
+	os.Stdout = os.Stderr
+
+	// create a client connected to stdio. the
+	// sconfigure the client to use tandard log package for logging.
+	v, err := nvim.New(os.Stdin, stdout, stdout, log.Printf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// register functions with the client.
+	v.RegisterHandler("hello", Hello)
+	v.RegisterHandler("wc", WordCount)
+
+	// run the RPC message loop.
+	// the Serve function returns when nvim closes.
+	if err := v.Serve(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+
+```
+
+:::
+
 
 まずは、neovim側で利用するロジックを実装しよう
 大まかな説明は以下の通り:
@@ -202,8 +284,6 @@ func main() {
 
 ```
 
-TODO: link to full code in github
-
 
 ### Lua・neovim側の実装 (`wc-demo.nvim/lua`)
 次にLua / neovim側の実装をしていきます。こちらの構成も非常にsimpleで、`lua`以下にpluginの名前になる`wc-demo`のディレクトリを作成して(neovim pluginシステムの慣習)その中に以下の2つのファイルを作成します。
@@ -257,10 +337,10 @@ require('wc-demo').setup({
 #### `rpc.lua`: Goの処理を呼ぶ
 
 `rpc.lua`は実際にGoバイナリとの通信を担当する重要なファイルです。このファイルの構造を詳しく見ていきましょう。
-このファイルに関しては以下のセクション毎に内容を見ていきます:
-* GoバイナリのPath設定
-* Helper関数の用意
-* RPC処理を実際のneovimコマンドとして登録
+このファイルに関しては以下のような3部構成になっているので、それぞれセクション毎に内容を見ていきます:
+1. GoバイナリのPath設定
+2. Helper関数の用意
+3. RPC処理を実際のneovimコマンドとして登録
 
 :::details フルコード
 
@@ -350,7 +430,7 @@ return M
 
 **GoバイナリのPath設定**
 
-関数の上部にある部分で実際に利用するGoバイナリのPathを設定しています。
+まずは、関数の上部にある部分で実際に利用するGoバイナリのPathを設定しています。
 
 ```lua
 -- dynamically get the plugin path
@@ -397,7 +477,7 @@ local function ensure_binary()
 end
 ```
 
-この関数は、RPCバイナリが存在しない場合に自動的にビルドを実行する役割を担っていて、`vim.fn.filereadable(binary_path) == 0`でバイナリファイルの存在確認を行い、存在しない場合は`go build`コマンドを非同期Jobとしてneovimから実行するというような形です。ビルドが失敗した場合は`vim.notify()`でエラーメッセージを表示してくれるようにもしています。
+こちらはRPCバイナリが存在しない場合に自動的にビルドを実行する役割を担っていて、`vim.fn.filereadable(binary_path) == 0`でバイナリファイルの存在確認を行い、存在しない場合は`go build`コマンドを非同期Jobとしてneovimから実行するというような形です。ビルドが失敗した場合は`vim.notify()`でエラーメッセージを表示してくれます。
 
 **`ensure_job()`関数**
 ```lua
@@ -452,7 +532,7 @@ end, { nargs = "*", range = true })
 
 こちらが今回メインの機能となり、ビジュアル選択された範囲のテキストを取得し、文字数をカウントするコマンドを作成しています。
 
-ざっくりと処理の中身を砕くと以下のような感じです:
+ざっくりと処理の中身を覗くと以下のような感じになっています:
 * `vim.fn.getpos("'<")`と`vim.fn.getpos("'>")`でビジュアル選択の開始位置と終了位置を取得
 * `vim.fn.getline()`で該当する行を取得
 * 単一行の選択の場合は`string.sub()`で部分文字列を切り出す
