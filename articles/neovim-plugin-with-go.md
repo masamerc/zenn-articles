@@ -100,7 +100,7 @@ $ go get -u github.com/neovim/go-client
 #### `main.go`
 次に以下の内容の`main.go`ファイルを用意します。
 
-:::details `main.go`
+:::details main.go
 
 ```go
 package main
@@ -336,13 +336,9 @@ require('wc-demo').setup({
 
 #### `rpc.lua`: Goの処理を呼ぶ
 
-`rpc.lua`は実際にGoバイナリとの通信を担当する重要なファイルです。このファイルの構造を詳しく見ていきましょう。
-このファイルに関しては以下のような3部構成になっているので、それぞれセクション毎に内容を見ていきます:
-1. GoバイナリのPath設定
-2. Helper関数の用意
-3. RPC処理を実際のneovimコマンドとして登録
+`rpc.lua`は実際にGoバイナリとの通信を担当するコードを含みます。以下のように用意をしていきます。
 
-:::details フルコード
+:::details rpc.lua
 
 ```lua
 
@@ -426,6 +422,13 @@ return M
 
 ```
 :::
+
+
+
+このファイルに関しては以下のような3部構成になっているので、それぞれセクション毎に内容を見ていきます:
+1. GoバイナリのPath設定
+2. Helper関数の用意
+3. RPC処理を実際のneovimコマンドとして登録
 
 
 **GoバイナリのPath設定**
