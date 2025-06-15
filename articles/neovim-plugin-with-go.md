@@ -72,7 +72,6 @@ wc-demo.nvim
     └── main.go
 ```
 
-## Pluginの作成
 流れとしてはまずGo側のRPCの処理を書いて、その後Goで実装した処理を利用するためのLua側の開発をしていきます。
 
 ## Go側の実装 (`wc-demo.nvim/rpc`)
