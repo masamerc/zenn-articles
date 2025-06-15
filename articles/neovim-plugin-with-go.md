@@ -572,7 +572,7 @@ https://github.com/folke/lazy.nvim
 
 Localにpluginコードを置いたままの場合:
 ```lua
-	{
+    {
         dir = "/path/to/plugin/wc-demo.nvim",
         config = function()
            require("wc-demo").setup()
@@ -583,7 +583,7 @@ Localにpluginコードを置いたままの場合:
 githubにPush済みの場合:
 ```lua
 
-	{
+    {
         "<github_username>/wc-demo.nvim",
         config = function()
            require("wc-demo").setup()
