@@ -10,6 +10,7 @@ published: false
 この記事ではGoでneovimのpluginを開発する基本的な方法を1から簡単なpluginを作りながら書いていきます。
 
 完成したpluginはこちら:
+
 https://github.com/masamerc/wc-demo.nvim
 
 自分の備忘録的な部分もありますが、いつかどなたかの役に立てれば良いと思い記事にしています！
@@ -24,19 +25,19 @@ https://github.com/neovim/go-client
 
 基本的な流れ：
 
-1. **Neovimプラグイン（Lua）側**: `jobstart()`でGoのバイナリをサブプロセスとして起動
+1. **neovimプラグイン（Lua）側**: `jobstart()`でGoのバイナリをサブプロセスとして起動
 2. **Go側**: `nvim.Serve()`でRPCサーバーを立ち上げて呼び出し可能な関数を登録
 3. **通信**: stdin/stdoutを使ってRPCでやり取り
-4. **実行**: neovimからGoの関数を`rpcrequest()`で呼び出し
+4. **Lua側での実行**: neovimからGoの関数を`rpcrequest()`で呼び出し
 
 重い処理とかGoの豊富なライブラリを使いたい部分はGoで書いて、プラグインのインターフェース部分はLuaで書くという住み分けができる感じですね。
 
-# 実際に作ってみよう / Code Along
-ここから実際にとりあえず動くpluginを1から`wc-demo.nvim`というディレクトリを作って開発していきます。
+# 実際に作ってみよう・Code Along
+ここから実際にとりあえず動くpluginを1から`wc-demo.nvim`というディレクトリを切って開発していきます。
 
-今回作成するpluginは本当にデモ用のものなので実用性はあまり無いかもしれないですが、以下の2つの機能をGoで書いてneovimから呼び出して見ようと思います:
-* `Hello`コマンド: 引数として受け取った文字列を使って`"Hello %s!!"`をneovim上で出力する簡単な動作確認用の機能
-* `Wc`コマンド: Unixの`wc`コマンドを模した機能で、neovim内でビジュアル選択している範囲のline数、word数、character数をカウントして表示するテキスト解析機能
+今回作成するpluginはデモ用のもので実用性はあまり無いかもしれないですが、以下の2つの機能をGoで書いてneovimから呼び出して見ようと思います:
+* **`Hello`コマンド**: 引数として受け取った文字列を使って`"Hello %s!!"`をneovim上で出力する簡単な動作確認用の機能
+* **`Wc`コマンド**: Unixの`wc`コマンドを模した機能で、neovim内でビジュアル選択している範囲のline数、word数、character数をカウントして表示するテキスト解析機能
 
 ## 環境
 開発・テストで使う環境は以下の通り:
@@ -53,7 +54,7 @@ LuaJIT 2.1.1744318430
 
 ## プロジェクト構成
 `wc-demo.nvim`ディレクトリに以下のような構成でファイルを置いていきます。
-基本的な構成としては、Go(`rpc`ディレクトリ) がメインの処理でneovim / lua(`lua`ディレクトリ)はそれを呼び出すためのwrapperコード的なものという整理をしていきたいと思います。
+基本的な構成としては、Go(`rpc`ディレクトリ) がメインの処理でneovim / lua(`lua`ディレクトリ)の部分はそれを呼び出すためのwrapperコード的なものという整理をしていきたいと思います。
 
 ```
 wc-demo.nvim
@@ -72,10 +73,10 @@ wc-demo.nvim
 ```
 
 ## Pluginの作成
-流れとしてはまずGo側のRPCの処理を書いて、その後その処理を利用するためのLuaの開発をしていきます。
+流れとしてはまずGo側のRPCの処理を書いて、その後Goで実装した処理を利用するためのLua側の開発をしていきます。
 
 ## Go側の実装 (`wc-demo.nvim/rpc`)
-まずはGo側の処理を先に作っていきます。
+それではGo側の処理を先に作っていきます。
 
 ```
 wc-demo.nvim
@@ -88,7 +89,7 @@ wc-demo.nvim
 ```
 ### 準備
 
-今回の必要な外部packageも一つだけでIntroでも触れたneovim公式のgo-clientです。
+今回必要な外部packageは一つだけで、Introでも触れたneovim公式のgo-clientです。
 `wc-demo.nvim/rpc`内で以下を実行していきます。
 
 ```
@@ -97,7 +98,7 @@ $ go get -u github.com/neovim/go-client
 ```
 
 ### `main.go`
-次に以下の内容の`main.go`ファイルを用意します。
+次に、以下の通り`main.go`ファイルを用意します。
 
 :::details main.go
 
@@ -238,9 +239,9 @@ func main() {
 }
 ```
 
-`Hello`, `WordCount`の関数それぞれが今回neovimに提供する機能の`Hello`と`Wc`に対応する処理を担っています。
+`Hello`, `WordCount`の関数それぞれが、今回neovimに提供する機能の`Hello`と`Wc`コマンドに対応する処理を担っています。
 上記はそれぞれ`*nvim.Nvim` (neovim instance) structに対するmethodとして実装していて、
-今回は基本的にはneovim上の何かしらの文字列出力がOutputになるので、どちらも`v.WriteOut`を使って終了します。
+どちらもneovim上に何かしらの文字列を出力することがGoalなので`v.WriteOut`を使って終了します。
 
 
 #### `Hello`関数の説明
@@ -289,7 +290,7 @@ func main() {
 1. `v := nvim.New()`でneovimインスタンスを取得して`v.RegisterHandler()`にて上記で定義したそれぞれの処理を登録する
 2. `v.Serve()`呼んでRPC message loopを開始する
 
-APIとしては非常にGoでHTTP Serverを作る時に似ているので、`http.HandleFunc()`でルートを登録して`http.ListenAndServe()`でサーバーを起動するパターンと同じような感覚で扱えます。
+APIとしては非常にGoでHTTP Serverを作る時に似ているので、`http.HandleFunc()`でルートを登録して`http.ListenAndServe()`でサーバーを起動する馴染み深いパターンと同じような感覚で扱えます。
 
 ### 補足: stdout -> stderrにリダイレクトしている理由
 neovimとGoプロセス間の通信はstdin/stdoutを通じたRPCで行われるため、このGoアプリケーション自体が直接stdoutに書き込むとRPCメッセージが破損してしまうので、stderrに流すようにします。また、元のstdoutを残しておくことで、`nvim.New()`でneovimとのRPC通信に必要な出力ストリームを確保できるようにしています。
