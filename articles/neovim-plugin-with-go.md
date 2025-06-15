@@ -1,27 +1,26 @@
 ---
-title: "wip-neovim-go"
+title: "Goで開発するneovimのplugin"
 emoji: "📘"
-type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["neovim", "plugin", "go", "rpc", "golang"]
+type: "tech"
+topics: ["neovim", "plugin", "go", "rpc", "golang", "vim"]
 published: false
 ---
 
 # 本記事の内容
-この記事ではベーシックな知識のみにはなりますが、Goでneovimのpluginを開発するための基礎ノウハウを書いていきます。
-メインの部分では実際に1からneovimの簡単なpluginを作っていきます。
+この記事ではGoでneovimのpluginを開発する基本的な方法を1から簡単なpluginを作りながら書いていきます。
 
 完成したpluginはこちら:
 https://github.com/masamerc/wc-demo.nvim
 
-自分の備忘録的な部分もありますが、どなたの役に立てれば幸いです!
+自分の備忘録的な部分もありますが、いつかどなたかの役に立てれば良いと思い記事にしています！
 
-# neovimからGoの処理を呼ぶ仕組み 
-構成としてはGoのRPCサーバーで提供される処理をneovimのクライアントから呼び出すだけのシンプルなものになります。
-neovimの公式Clientがあるのでそちらを使って、Go側の処理を実装しそれをLuaでneovimから呼び出すといった形です。
+# neovimからGoの処理を呼ぶ仕組み
+仕組みとしては、GoのRPCサーバーで提供される処理をneovimのクライアントから呼び出すというものになります。
+
+neovimの公式Clientがあるのでそちらを使ってGo側の処理を実装し、それをLuaでneovimから呼び出すといった形になります。こちらのpackageがRPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
 
 https://github.com/neovim/go-client
 
-こちらはneovim公式で出しているもので、RPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
 
 基本的な流れ：
 
@@ -30,16 +29,17 @@ https://github.com/neovim/go-client
 3. **通信**: stdin/stdoutを使ってRPCでやり取り
 4. **実行**: neovimからGoの関数を`rpcrequest()`で呼び出し
 
-重い処理とかGoの豊富なライブラリを使いたい部分はGoで書いて、プラグインのインターフェース部分はLuaで書くという住み分けができる感じですね!
+重い処理とかGoの豊富なライブラリを使いたい部分はGoで書いて、プラグインのインターフェース部分はLuaで書くという住み分けができる感じですね。
 
 # 実際に作ってみよう / Code Along
-ここから実際に一からとりあえず動くpluginを`wc-demo.nvim`というディレクトリを作って開発していきます。
+ここから実際にとりあえず動くpluginを1から`wc-demo.nvim`というディレクトリを作って開発していきます。
 
-今回作成するpluginは。。。
-
+今回作成するpluginは本当にデモ用のものなので実用性はあまり無いかもしれないですが、以下の2つの機能をGoで書いてneovimから呼び出して見ようと思います:
+* `Hello`コマンド: 引数として受け取った文字列を使って`"Hello %s!!"`をneovim上で出力する簡単な動作確認用の機能
+* `Wc`コマンド: Unixの`wc`コマンドを模した機能で、neovim内でビジュアル選択している範囲のline数、word数、character数をカウントして表示するテキスト解析機能
 
 ## 環境
-開発・テストした環境は以下の通り:
+開発・テストで使う環境は以下の通り:
 
 ```
 $ go version
@@ -53,10 +53,10 @@ LuaJIT 2.1.1744318430
 
 ## プロジェクト構成
 `wc-demo.nvim`ディレクトリに以下のような構成でファイルを置いていきます。
-基本的な構成としては、Goがメインの処理でneovim / luaはそれを呼び出すためのwrapperコード的なもの。
+基本的な構成としては、Go(`rpc`ディレクトリ) がメインの処理でneovim / lua(`lua`ディレクトリ)はそれを呼び出すためのwrapperコード的なものという整理をしていきたいと思います。
 
 ```
-wc-demo
+wc-demo.nvim
 │
 ├── lua              # neovimが使うluaのpluginファイルを置く場所
 │   └── wc-demo
@@ -72,15 +72,13 @@ wc-demo
 ```
 
 ## Pluginの作成
-まずは今回実装する処理だが、あくまでもDEMOなので、かなりシンプルなものにして以下のような２つ:
-- Hello: 単純に指定された名前にGreet
-- Wc: Unix wcを模したやつでneovim内でselectしているところのline, word, charカウントを表示するだけ
+流れとしてはまずGo側のRPCの処理を書いて、その後その処理を利用するためのLuaの開発をしていきます。
 
-
-### Go側の実装 (`wc-demo.nvim/rpc`)
-まずはGo側の処理に焦点をあててく。以下の中でも一旦はmain.goだけ見ていけばよい。
+## Go側の実装 (`wc-demo.nvim/rpc`)
+まずはGo側の処理を先に作っていきます。
 
 ```
+wc-demo.nvim
 └── rpc
     ├── bin
     │   └── server
@@ -88,16 +86,17 @@ wc-demo
     ├── go.sum
     └── main.go
 ```
+### 準備
 
-今回の必要な外部packageも一つだけであり、それがIntroでも触れたClientだ。
-`wc-demo.nvim/rpc`内で以下を実行しよう
+今回の必要な外部packageも一つだけでIntroでも触れたneovim公式のgo-clientです。
+`wc-demo.nvim/rpc`内で以下を実行していきます。
 
 ```
 $ go mod init wc_demo
 $ go get -u github.com/neovim/go-client
 ```
 
-#### `main.go`
+### `main.go`
 次に以下の内容の`main.go`ファイルを用意します。
 
 :::details main.go
@@ -183,14 +182,8 @@ func main() {
 :::
 
 
-まずは、neovim側で利用するロジックを実装しよう
-大まかな説明は以下の通り:
-- `Hello`, `WordCount`が今回neovimに提供する機能・サービスの一つ一つ
-- 上記はそれぞれ`*nvim.Nvim` (neovim instance) structに対するmethodsとして実装してあげる。
-  - function signature
-- 今回は基本的にはneovim上で何かしらの文字出力がOutputなので、どちらもv.WriteOutを使って終了
-- Helloの説明
-- WordCountの説明
+まずは、今回pluginで使うコアロジックを実装していきます。
+
 ```go
 package main
 
@@ -207,6 +200,7 @@ import (
 func Hello(v *nvim.Nvim, args []string) error {
 	return v.WriteOut(fmt.Sprintf("Hello %s!!\n", strings.Join(args, " ")))
 }
+
 // another function / handler for neovim
 func WordCount(v *nvim.Nvim, args []string) error {
 
@@ -244,14 +238,21 @@ func main() {
 }
 ```
 
-次にバイナリのEntrypointとなるmain関数似ついて以下のようなものを用意します。
-細かい説明はコメントで記載している通りですが、重要な部分をPick upすると以下のような流れになります。
-1. `v := nvim.New()`でneovimインスタンスを取得して`v.RegisterHandler()`にて上記で定義したそれぞれの処理を登録する
-2. `v.Serve()`呼んでRPC message loopを開始する
+`Hello`, `WordCount`の関数それぞれが今回neovimに提供する機能の`Hello`と`Wc`に対応する処理を担っています。
+上記はそれぞれ`*nvim.Nvim` (neovim instance) structに対するmethodとして実装していて、
+今回は基本的にはneovim上の何かしらの文字列出力がOutputになるので、どちらも`v.WriteOut`を使って終了します。
 
-APIとしては非常にGoでHTTP Serverを作る時に似ているので、馴染みやすいと感じるケースもあるような気がします。
 
-TODO: stdin stdoutあたりのわかりやすい説明を書く。
+#### `Hello`関数の説明
+動作確認用のシンプルな機能で、引数として受け取った文字列をスペースで結合し、`"Hello %s!!"`の形式でneovim上に出力します。`strings.Join(args, " ")`で複数の引数を一つの文字列にまとめ、`fmt.Sprintf`でフォーマットしてから`v.WriteOut`で出力しています。
+
+#### `WordCount`関数の説明
+こちらは渡されたテキストの行数、単語数、文字数をカウントして出力する処理を担っています。
+* 単語数: `strings.Fields(text)`で空白文字で分割し、空でない要素の数をカウント
+* 文字数: `strings.ReplaceAll(text, " ", "")`でスペースを除去した文字列の長さを計算
+* 行数: `strings.Count(text, "\n") + 1`で改行文字の数に1を加えて計算（空文字列の場合は0に調整）
+
+次にバイナリのEntrypointとなる`main`関数について見ていきます。
 
 ```go
 // binary entry point
@@ -264,8 +265,8 @@ func main() {
 	stdout := os.Stdout
 	os.Stdout = os.Stderr
 
-	// create a client connected to stdio. the
-	// sconfigure the client to use tandard log package for logging.
+	// create a client connected to stdio.
+	// configure the client to use standard log package for logging.
 	v, err := nvim.New(os.Stdin, stdout, stdout, log.Printf)
 	if err != nil {
 		log.Fatal(err)
@@ -284,8 +285,29 @@ func main() {
 
 ```
 
+細かい説明はコメントで記載している通りですが、重要な部分をピックアップすると以下のような流れになります。
+1. `v := nvim.New()`でneovimインスタンスを取得して`v.RegisterHandler()`にて上記で定義したそれぞれの処理を登録する
+2. `v.Serve()`呼んでRPC message loopを開始する
 
-### Lua・neovim側の実装 (`wc-demo.nvim/lua`)
+APIとしては非常にGoでHTTP Serverを作る時に似ているので、`http.HandleFunc()`でルートを登録して`http.ListenAndServe()`でサーバーを起動するパターンと同じような感覚で扱えます。
+
+### 補足: stdout -> stderrにリダイレクトしている理由
+neovimとGoプロセス間の通信はstdin/stdoutを通じたRPCで行われるため、このGoアプリケーション自体が直接stdoutに書き込むとRPCメッセージが破損してしまうので、stderrに流すようにします。また、元のstdoutを残しておくことで、`nvim.New()`でneovimとのRPC通信に必要な出力ストリームを確保できるようにしています。
+```go
+// direct writes by the application to stdout garble the rpc stream.
+// redirect the application's direct use of stdout to stderr.
+stdout := os.Stdout
+os.Stdout = os.Stderr
+
+// create a client connected to stdio.
+// configure the client to use the standard log package for logging.
+v, err := nvim.New(os.Stdin, stdout, stdout, log.Printf)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+## Lua・neovim側の実装 (`wc-demo.nvim/lua`)
 次にLua / neovim側の実装をしていきます。こちらの構成も非常にsimpleで、`lua`以下にpluginの名前になる`wc-demo`のディレクトリを作成して(neovim pluginシステムの慣習)その中に以下の2つのファイルを作成します。
 * `init.lua`: pluginのメインのエントリーポイント
 * `rpc.lua`: Goで実装した処理をRPCで呼ぶためのコードで`init.lua`内で使われる
@@ -298,7 +320,7 @@ wc-demo.nvim
         └── rpc.lua
 ```
 
-#### `init.lua`: pluginの入り口
+### `init.lua`: pluginの入り口
 まずはpluginとしての入り口になる`init.lua`を以下のように用意していきます。
 
 ```lua
@@ -334,7 +356,7 @@ require('wc-demo').setup({
 そして実際の初期化処理は`rpc.setup(opts)`に委譲することで、`init.lua`はシンプルな入り口の役割に徹しています。
 
 
-#### `rpc.lua`: Goの処理を呼ぶ
+### `rpc.lua`: Goの処理を呼ぶ
 
 `rpc.lua`は実際にGoバイナリとの通信を担当するコードを含みます。以下のように用意をしていきます。
 
@@ -431,7 +453,7 @@ return M
 3. RPC処理を実際のneovimコマンドとして登録
 
 
-**GoバイナリのPath設定**
+#### GoバイナリのPath設定
 
 まずは、関数の上部にある部分で実際に利用するGoバイナリのPathを設定しています。
 
@@ -458,7 +480,7 @@ wc-demo.nvim
     └── main.go
 ```
 
-**Helper関数の用意**
+#### Helper関数の用意
 
 次に、Helper関数として2つの重要な関数が定義されています。
 
@@ -499,7 +521,7 @@ end
 
 もしまだ接続がなければ、まず`ensure_binary()`を呼び出してバイナリの存在を確認・ビルドした後、`vim.fn.jobstart({ binary_path }, { rpc = true })`でRPCサーバーを起動します。
 
-**RPC処理を実際のneovimコマンドとして登録**
+#### RPC処理を実際のneovimコマンドとして登録
 
 最後のセクションでは、2つのユーザーコマンドを定義してRPC機能をNeovimから利用できるようにしています。
 
@@ -544,4 +566,7 @@ end, { nargs = "*", range = true })
 最終的に`vim.fn.rpcrequest(ensure_job(), "wc", { text_to_analyze })`でGoサーバーの`wc`メソッドを呼び出して解析対象のテキストを渡している形です。
 このコマンド登録をすることでユーザーはneovimから`:Hello`や`:Wc`コマンドを打ってRPC機能を利用できるようになります。
 
-### 動作確認
+## Pluginの動作確認
+
+
+# まとめ
