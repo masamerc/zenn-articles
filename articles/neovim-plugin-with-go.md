@@ -17,9 +17,9 @@ https://github.com/masamerc/wc-demo.nvim
 自分の備忘録的な部分もありますが、いつかどなたかの役に立てれば良いと思い記事にしてみました！
 
 # neovimからGoの処理を呼ぶ仕組み
-仕組みとしては、GoのRPCサーバーで提供される処理をneovimのクライアントから呼び出すというものになります。
+仕組みとしては、GoのRPCサーバーで提供される処理をneovimから呼び出すというものになります。
 
-neovimの公式Clientがあるのでそちらを使ってGo側の処理を実装し、それをLuaでneovimから呼び出すといっながれになり、こちらのpackageがRPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
+neovimの公式Clientがあるのでそちらを使ってGo側の処理を実装し、それをLuaでneovimから呼び出すといった流れになり、こちらのpackageがRPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
 
 https://github.com/neovim/go-client
 
