@@ -14,12 +14,12 @@ published: false
 
 https://github.com/masamerc/wc-demo.nvim
 
-自分の備忘録的な部分もありますが、いつかどなたかの役に立てれば良いと思い記事にしています！
+自分の備忘録的な部分もありますが、いつかどなたかの役に立てれば良いと思い記事にしてみました！
 
 # neovimからGoの処理を呼ぶ仕組み
 仕組みとしては、GoのRPCサーバーで提供される処理をneovimのクライアントから呼び出すというものになります。
 
-neovimの公式Clientがあるのでそちらを使ってGo側の処理を実装し、それをLuaでneovimから呼び出すといった形になります。こちらのpackageがRPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
+neovimの公式Clientがあるのでそちらを使ってGo側の処理を実装し、それをLuaでneovimから呼び出すといっながれになり、こちらのpackageがRPC通信とかNeovimのAPIバインディングとかを良い感じに提供してくれます。
 
 https://github.com/neovim/go-client
 
@@ -566,7 +566,7 @@ end, { nargs = "*", range = true })
 このコマンド登録をすることでユーザーはneovimから`:Hello`や`:Wc`コマンドを打ってRPC機能を利用できるようになります。
 
 ## Pluginの動作確認
-ここまでファイルが用意ができたらneovimから実際に呼び出してみます。
+ここまでファイルが用意ができたら、実際にInstallしてneovimから機能を呼び出してみます。
 筆者は`lazy.nvim`というpluginマネージャーを使っているので以下のような形でpluginを読み込みます。
 
 https://github.com/folke/lazy.nvim
