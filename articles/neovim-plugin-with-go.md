@@ -7,7 +7,8 @@ published: false
 ---
 
 # 本記事の内容
-この記事ではGoでneovimのpluginを開発する基本的な方法を1から簡単なpluginを作りながら書いていきます。
+この記事ではGoでneovimのpluginを開発する基本的な方法ついて、
+1から簡単なpluginを作りながら書いていきます。
 
 完成したpluginはこちら:
 
