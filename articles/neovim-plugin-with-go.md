@@ -6,6 +6,12 @@ topics: ["neovim", "plugin", "go", "rpc", "golang", "vim"]
 published: true
 ---
 
+:::message
+この記事は [Vim 駅伝](https://vim-jp.org/ekiden/) の 07/09 の記事です。
+前回の記事は thinca さんによる、 07/07 の「[Meguro.vim #30 を開催しました](https://thinca.hatenablog.com/entry/2025/07/megurovim-30)」という記事でした。
+次回は 07/11 に投稿される予定です。
+:::
+
 # 本記事の内容
 この記事ではGoでneovimのpluginを開発する基本的な方法ついて、
 1から簡単なpluginを作りながら書いていきます。
